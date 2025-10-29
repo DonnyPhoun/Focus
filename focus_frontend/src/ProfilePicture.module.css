@@ -1,0 +1,7 @@
+.profilePic {
+  width: 80px; /* Adjust size as needed */
+  height: 80px; /* Should be same as width for perfect circle */
+  border-radius: 50%; /* This is the key property for a circle */
+  object-fit: cover; /* Ensures the image covers the area without stretching */
+  border: 2px solid #ddd; /* Optional: adds a border */
+}

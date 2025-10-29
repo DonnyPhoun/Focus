@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Flask
+instance/
+media/
+*.db
+
+# Node/Vite
+node_modules/
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+*.env
+
+# IDE
+.vscode/
+.idea/
