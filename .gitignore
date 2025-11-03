@@ -30,3 +30,7 @@ Thumbs.db
 
 # Ignore all soundfont files
 *.sf2
+
+# Ignore generated songs
+*.wav
+*.mp3

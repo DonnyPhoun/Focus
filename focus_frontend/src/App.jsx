@@ -28,14 +28,11 @@ function initials(name) {
 const MOCK_PEERS = [
   { id: "p1", name: "Ava Chen", profilePic: avatarAnimeGirl},
   { id: "p2", name: "Diego S.", profilePic: avatarCoolGuy},
-  { id: "p3", name: "Maya R.", avatarCoolGirl },
+  { id: "p3", name: "Maya R.", profilePic: avatarCoolGirl },
   { id: "p4", name: "Samir K.", profilePic },
   { id: "p5", name: "Liam P." },
   { id: "p6", name: "Noah F.", profilePic: avatarAnimeGirl },
 ];
-
-
-
 
 export default function Focus() {
   const [profileImage, setProfileImage] = useState(PROFILE_OPTIONS[0]);
@@ -45,32 +42,29 @@ export default function Focus() {
   const [error, setError] = useState("");
   const [audioOn, setAudioOn] = useState(false);
   const [volume, setVolume] = useState(0.25);
-  
+
+  // NEW: generation state + last track url
+  const [genLoading, setGenLoading] = useState(false);
+  const [trackUrl, setTrackUrl] = useState(null);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const audioRef = useRef(null);
 
-  
-
   // Load saved name and profile picture
   useEffect(() => {
     const savedName = localStorage.getItem("focus:name") || "";
     const savedImage = localStorage.getItem("focus:profileImage");
-
     if (savedName) setDisplayName(savedName);
     else setEditingName(true);
-
     if (savedImage !== null){
       setProfileImage(savedImage === 'null' ? null : savedImage);
     }
   }, []);
 
-  // Setup audio element (royalty-free demo track). Replace with your own later.
+  // Setup audio element (no default src; we’ll set src after generation)
   useEffect(() => {
-    const audio = new Audio(
-      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-    );
+    const audio = new Audio();
     audio.loop = true;
     audio.volume = volume;
     audioRef.current = audio;
@@ -84,9 +78,48 @@ export default function Focus() {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
+  // --- Generation: ask backend for a new track and play it
+  const requestNewTrack = async () => {
+    setError("");
+    setGenLoading(true);
+    try {
+      
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: "chill lofi piano" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to generate");
+
+      const url = data.audioUrl; // e.g., /media/<uuid>.mp3
+      setTrackUrl(url);
+
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        await audioRef.current.play();
+        setAudioOn(true);
+      }
+    } catch (e) {
+      console.error(e);
+      setError(e.message || "Generation failed.");
+      setAudioOn(false);
+    } finally {
+      setGenLoading(false);
+    }
+  };
+
   const toggleAudio = async () => {
+    setError("");
     try {
       if (!audioRef.current) return;
+
+      // If no track yet, generate one
+      if (!trackUrl) {
+        await requestNewTrack();
+        return;
+      }
+
       if (audioOn) {
         audioRef.current.pause();
         setAudioOn(false);
@@ -96,7 +129,7 @@ export default function Focus() {
       }
     } catch (e) {
       console.error(e);
-      setError("Autoplay blocked. Tap the play button again to start music.");
+      setError("Autoplay blocked. Tap play again to start music.");
     }
   };
 
@@ -149,8 +182,6 @@ export default function Focus() {
       />
       <div className="absolute inset-0 bg-black/60" aria-hidden />
 
-      
-
       {/* Top bar */}
       <header className="relative z-10 flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
@@ -166,6 +197,20 @@ export default function Focus() {
           >
             {displayName ? `@${displayName}` : "Set display name"}
           </button>
+
+          {/* NEW: Generate a fresh track */}
+          <button
+            className={`rounded-xl px-3 py-2 transition ${
+              genLoading ? "bg-white/20" : "bg-indigo-500/80 hover:bg-indigo-500"
+            }`}
+            onClick={requestNewTrack}
+            disabled={genLoading}
+            title="Generate a new lofi track"
+          >
+            {genLoading ? "…Generating" : "New Track"}
+          </button>
+
+          {/* Play/Pause the current track */}
           <button
             className={`rounded-xl px-3 py-2 transition ${
               audioOn ? "bg-emerald-500/80 hover:bg-emerald-500" : "bg-white/10 hover:bg-white/20"
@@ -173,8 +218,9 @@ export default function Focus() {
             onClick={toggleAudio}
             title="Toggle lofi"
           >
-            {audioOn ? "⏸ Lofi" : "▶️ Lofi"}
+            {audioOn ? "⏸ Lofi" : trackUrl ? "▶️ Lofi" : "▶️ Play"}
           </button>
+
           <input
             type="range"
             min={0}
@@ -196,8 +242,7 @@ export default function Focus() {
             <div className="rounded-2xl bg-white/10 backdrop-blur p-4 shadow-xl border border-white/10">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold">You</h2>
-                <div className="flex items-center gap-2">
-                </div>
+                <div className="flex items-center gap-2"></div>
               </div>
 
               <div className="aspect-video w-full overflow-hidden rounded-xl bg-black/40 flex items-center justify-center">
@@ -209,33 +254,24 @@ export default function Focus() {
                     playsInline
                   />
                 ) : (
-                  // Check if profile pic is available
                   <div className="flex flex-col items-center justify-center gap-2 p-6 text-center">
-                    {profilePic ? (
+                    {profileImage ? (
                       <img 
                         src={profileImage} 
                         alt={`${initials(displayName)}`}
                         className="h-20 w-20 rounded-full object-cover"
                       />
                     ) : (
-                     <div className="h-20 w-20 rounded-full bg-white/10 grid place-items-center text-2xl font-bold">
+                      <div className="h-20 w-20 rounded-full bg-white/10 grid place-items-center text-2xl font-bold">
                         {displayName ? initials(displayName) : "?"}
-                    </div>
-                   )}
+                      </div>
+                    )}
                   </div>
-                  
-
-                  // <div className="flex flex-col items-center justify-center gap-2 p-6 text-center">
-                  //   <div className="h-20 w-20 rounded-full bg-white/10 grid place-items-center text-2xl font-bold">
-                  //     {/* {displayName ? initials(displayName) : "?"} */}
-                  //   </div>
-                  //   <p className="text-sm text-white/80">
-                  //   </p>
-                  // </div>
                 )}
               </div>
             </div>
-            {/* Timer card (sits directly under the first box) */}
+
+            {/* Timer card */}
             <div className="mt-6 rounded-2xl bg-white/10 backdrop-blur p-4 shadow-xl border border-white/10">
               <CountdownTimer initialTimeInSeconds={1500} /> {/* 25 minutes */}
             </div>
@@ -252,9 +288,9 @@ export default function Focus() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {/* Your tile (mirrored as presence) */}
                 <PresenceTile 
-                name={displayName || "You"} 
-                active={camOn}
-                profilePic={profileImage} />
+                  name={displayName || "You"} 
+                  active={camOn}
+                  profilePic={profileImage} />
                 {MOCK_PEERS.map((p) => (
                   <PresenceTile key={p.id} name={p.name} active={false} profilePic={p.profilePic}/>
                 ))}
@@ -266,7 +302,7 @@ export default function Focus() {
               <h3 className="text-base font-semibold mb-2">How it works (MVP)</h3>
               <ul className="list-disc pl-5 space-y-1 text-white/85 text-sm">
                 <li>Set a display name and (optionally) turn on your camera.</li>
-                <li>Play lofi for vibe; volume slider on the top bar.</li>
+                <li>Generate a new track or play/pause the current one from the top bar.</li>
                 <li>Other users are mocked for now. Realtime presence & rooms come next.</li>
               </ul>
             </div>
@@ -290,13 +326,12 @@ export default function Focus() {
                 <div 
                   key={index}
                   className={`w-14 h-14 rounded-full overflow-hidden cursor-pointer transition-all ${
-                    profileImage === url // Use profileImage === url for selection logic
+                    profileImage === url
                       ? 'ring-4 ring-neutral-900 ring-offset-2 ring-offset-white' 
                       : 'hover:ring-2 hover:ring-neutral-400'
                   }`}
                   onClick={() => {
-                    console.log(`Setting profile image to: ${url}`); 
-                    setProfileImage(url); // Update the main profile image state
+                    setProfileImage(url);
                   }}
                 >
                   {url ? (
@@ -312,9 +347,9 @@ export default function Focus() {
 
             {/* Changing Display Name */}
             <input
-                className="w-full rounded-xl border border-neutral-300 bg-black/1000 
-                          px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white/70 
-                          text-white placeholder:text-neutral-400"
+              className="w-full rounded-xl border border-neutral-300 bg-black/1000 
+                        px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white/70 
+                        text-white placeholder:text-neutral-400"
               placeholder="e.g., Donald P."
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
@@ -365,10 +400,10 @@ function PresenceTile({ name, active, profilePic }) {
             <div className="h-14 w-14 rounded-full bg-white/10 grid place-items-center text-lg font-bold">
               {initials(name) || "?"}
             </div>
-            )}
+          )}
           <p className="text-xs text-white/80">{name}</p>
         </div>
-          )}
+      )}
     </div>
   );
 }
