@@ -18,12 +18,11 @@ MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 LOFI_OUT.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, resources={r"/api/*": {"origins": "*"}}) # Should explicitly state origins later on for security
 
 def run_music_transformer():
     """
-    Run your exact MT command inside backend/MusicTransformer-Pytorch.
-    This generates songs/rand.mid (as your script currently does).
+    Runs music transformer script using the specifications for the model.
     """
     cmd = [
         "python3", str(MT_SCRIPT),
@@ -36,7 +35,7 @@ def run_music_transformer():
         "-num_heads", "8",
         "-midi_root", "./preprocessed_data"
     ]
-    subprocess.run(cmd, check=True, cwd=str(MT_DIR))
+    subprocess.run(cmd, check=True, cwd=str(MT_DIR)) # check for problems, set current directory to Music Transformer Directory.
 
 def newest_file(dir_glob: str) -> Path | None:
     files = glob.glob(dir_glob)
@@ -47,8 +46,7 @@ def newest_file(dir_glob: str) -> Path | None:
 
 def run_lofi_filter() -> Path:
     """
-    Run your lo-fi pipeline (no args; uses hardcoded paths inside the script).
-    The script prints the final MP3 path; we’ll also pick the newest MP3 just in case.
+    Runs piano pipeline, returns newest available mp3 in the case that it does not return anything.
     """
     cp = subprocess.run(
         ["python3", str(LOFI_SCRIPT)],
@@ -97,5 +95,4 @@ def serve_media(filename):
     return send_from_directory(MEDIA_DIR, filename, as_attachment=False)
 
 if __name__ == "__main__":
-    # Use a port different from Vite's 5173
     app.run(host="127.0.0.1", port=5001, debug=True)
