@@ -62,10 +62,10 @@ export default function Focus() {
     }
   }, []);
 
-  // Setup audio element (no default src; we’ll set src after generation)
+  // Setup audio element (no default src; set src after generation)
   useEffect(() => {
     const audio = new Audio();
-    audio.loop = true;
+    audio.loop = true; // loop until new song is generated
     audio.volume = volume;
     audioRef.current = audio;
     return () => {
@@ -78,7 +78,7 @@ export default function Focus() {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
-  // --- Generation: ask backend for a new track and play it
+  // Generation: ask backend for a new track and play it
   const requestNewTrack = async () => {
     setError("");
     setGenLoading(true);
@@ -87,7 +87,7 @@ export default function Focus() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: "chill lofi piano" }),
+        body: JSON.stringify({ prompt: "chill lofi piano" }), // Gonna ignore for now
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to generate");

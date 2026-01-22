@@ -69,7 +69,7 @@ def run_lofi_filter() -> Path:
 
 @app.route("/api/generate", methods=["POST"])
 def generate():
-    # prompt accepted for future use; your current generator ignores it
+    #ignoring prompt for now, will adjust if/when needed
     _ = (request.get_json(silent=True) or {}).get("prompt", "")
 
     try:
