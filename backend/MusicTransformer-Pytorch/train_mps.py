@@ -39,9 +39,6 @@ def main():
     args = parse_train_args()
     print_train_args(args)
 
-    # --------------------------------------------------------------------------
-    # MODIFICATION 1: DEVICE SETUP FOR APPLE SILICON (MPS)
-    # --------------------------------------------------------------------------
     # Note: On modern PyTorch builds (>=1.12), the torch.device() object can handle this.
     # We define the device here to ensure MPS acceleration is prioritized on Mac.
     
@@ -49,7 +46,6 @@ def main():
 
     # Check for MPS device availability and override if found
     if torch.backends.mps.is_available():
-        # MPS is the recommended way to accelerate PyTorch on Apple Silicon
         device = torch.device("mps")
         print("INFO: MPS (Metal) device detected and will be used for acceleration.")
     
@@ -99,15 +95,13 @@ def main():
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=args.n_workers)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=args.n_workers)
 
-    # --------------------------------------------------------------------------
-    # MODIFICATION 2: Move model to the selected device (.to(device))
-    # --------------------------------------------------------------------------
+
     model = MusicTransformer(n_layers=args.n_layers, num_heads=args.num_heads,
                 d_model=args.d_model, dim_feedforward=args.dim_feedforward, dropout=args.dropout,
                 max_sequence=args.max_sequence, rpr=args.rpr).to(device)
     # --------------------------------------------------------------------------
 
-    ##### Continuing from previous training session #####
+
     start_epoch = BASELINE_EPOCH
     if(args.continue_weights is not None):
         if(args.continue_epoch is None):
